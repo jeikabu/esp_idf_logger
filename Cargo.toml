@@ -1,6 +1,6 @@
 [package]
 name = "esp_idf_logger"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["jeikabu <jeikabu@users.noreply.github.com>"]
 edition = "2018"
 
@@ -8,8 +8,8 @@ description = "A logger that logs with ESP-IDF"
 license = "MIT"
 homepage = "https://github.com/jeikabu/esp_idf_logger/"
 repository = "https://github.com/jeikabu/esp_idf_logger/"
-keywords = ["esp-idf", "log", "logging", "esp32"]
-categories = ["embedded", "no-std", "debugging"]
+keywords = ["esp-idf", "esp32", "log", "logging"]
+categories = ["embedded", "no-std", "development-tools::debugging"]
 readme = "README.md"
 
 [features]
@@ -20,3 +20,6 @@ ets_printf = []
 log = "0.4"
 cty = "0.2"
 esp-idf-sys = "0.1.2"
+
+[package.metadata.docs.rs]
+default-target = "x86_64-unknown-linux-gnu"

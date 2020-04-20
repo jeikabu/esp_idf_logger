@@ -18,30 +18,39 @@ impl log::Log for EtsPrintfLogger {
 
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
-            const SIZE: usize = 256;
-            const SUFFIX: usize = 2;
-            const ELLIPSES: usize = 3;
-            let mut buffer = [0u8; SIZE];
-            // Always leave enough space for `\n\0`
-            let mut writer = Wrapper::new(&mut buffer[..SIZE - SUFFIX]);
+            const BUFFER_SIZE: usize = 128;
+            const SUFFIX_SIZE: usize = 2;
+            const ELLIPSES_SIZE: usize = 3;
+            // C API expects log output ends with newline and nul-terminating 0
+            let buffer_suffix: &[u8; SUFFIX_SIZE] = b"\n\0";
+            let mut string_buffer = [0u8; BUFFER_SIZE];
+            // Always leave enough space for `buffer_suffix`
+            let mut writer = Wrapper::new(&mut string_buffer[..BUFFER_SIZE - SUFFIX_SIZE]);
             let res = write!(writer, "{}", record.args());
-            let offset = writer.offset();
-            if res.is_err() && offset >= ELLIPSES {
-                // If couldn't write the whole string and there's space, replace the
-                // end to indicate it's truncated.
-                let ellipses: &[u8; ELLIPSES] = b"...";
-                buffer[offset - ELLIPSES..offset].copy_from_slice(ellipses);
+            let mut offset = writer.offset();
+            if res.is_err() {
+                if offset >= ELLIPSES_SIZE {
+                    // If couldn't write the whole string and there's space, replace the
+                    // end to indicate it's truncated.
+                    let ellipses: &[u8; ELLIPSES_SIZE] = b"...";
+                    string_buffer[offset - ELLIPSES_SIZE..offset].copy_from_slice(ellipses);
+                } else {
+                    let error_msg = b"logger OOPS";
+                    offset = error_msg.len();
+                    string_buffer[..offset].copy_from_slice(error_msg);
+                }
             }
-            // Write newline and nul-terminating 0 (as expected by C API)
-            let suffix: &[u8; SUFFIX] = b"\n\0";
-            buffer[offset..offset + SUFFIX].copy_from_slice(suffix);
+            
+            string_buffer[offset..offset + SUFFIX_SIZE].copy_from_slice(buffer_suffix);
             unsafe {
-                esp_idf_sys::ets_printf(buffer.as_ptr() as *const _);
+                esp_idf_sys::ets_printf(string_buffer.as_ptr() as *const _);
             }
         }
     }
 
-    fn flush(&self) {}
+    fn flush(&self) {
+        // TODO: not sure if this should be `esp_idf_sys::fflush()` or `esp_idf_sys::uart_flush()`
+    }
 }
 
 /// Based off:
@@ -62,7 +71,7 @@ impl<'a> Wrapper<'a> {
 
 impl<'a> fmt::Write for Wrapper<'a> {
     fn write_str(&mut self, s: &str) -> fmt::Result {
-        // Skip over already-copied data leaving space for '\0'
+        // Skip over already-copied data
         let remainder = &mut self.buf[self.offset..];
         let bytes = s.as_bytes();
         // Check if there is space remaining (return error instead of panicking)
