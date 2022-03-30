@@ -1,7 +1,7 @@
 #![no_std]
 
 use core::fmt::{self, Write};
-use log::{Level, LevelFilter, Metadata, Record, SetLoggerError};
+use log::{LevelFilter, Metadata, Record, SetLoggerError};
 
 static DEFAULT_LOGGER: EtsPrintfLogger = EtsPrintfLogger;
 
@@ -13,7 +13,7 @@ struct EtsPrintfLogger;
 
 impl log::Log for EtsPrintfLogger {
     fn enabled(&self, metadata: &Metadata) -> bool {
-        metadata.level() <= Level::Info
+        metadata.level() <= log::max_level()
     }
 
     fn log(&self, record: &Record) {
